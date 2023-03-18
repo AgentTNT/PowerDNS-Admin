@@ -25,12 +25,15 @@
             <div class="row">
                 <div class="col-12">
                     <div class="card">
+                        <div id="loading" class="overlay dark d-none">
+                            <i class="fas fa-2x fa-sync-alt fa-spin"></i>
+                        </div>
                         <div class="card-header">
                             <h3 class="card-title">Zone Editor</h3>
                             <div class="card-tools">
                                 {% if current_user.role.name in ['Administrator', 'Operator'] %}
                                     <button type="button" title="Zone Settings"
-                                            class="btn btn-primary btn-danger mt-2 mb-2"
+                                            class="btn btn-primary btn-danger mt-2 mb-2 button_zone_settings d-none"
                                             onclick="window.location.href='{{ url_for('domain.setting', domain_name=domain.name) }}'">
                                         <i class="fa-solid fa-toolbox"></i>
                                         &nbsp;Zone Settings
@@ -38,19 +41,21 @@
                                 {% endif %}
                                 {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
                                     <button type="button" title="Zone Changelog"
-                                            class="btn btn-primary ml-2 mt-2 mb-2 button_changelog" id="{{ domain.name }}">
+                                            class="btn btn-primary ml-2 mt-2 mb-2 button_changelog d-none"
+                                            id="{{ domain.name }}">
                                         <i class="fa-solid fa-history" aria-hidden="true"></i>
                                         &nbsp;Changelog
                                     </button>
                                 {% endif %}
                                 {% if domain.type != 'Slave' %}
                                     <button type="button" title="Add Record"
-                                            class="btn btn-primary ml-2 mt-2 mb-2 button_add_record" id="{{ domain.name }}">
+                                            class="btn btn-primary ml-2 mt-2 mb-2 button_add_record d-none"
+                                            id="{{ domain.name }}">
                                         <i class="fa-solid fa-plus"></i>
                                         &nbsp;Add Record
                                     </button>
                                     <button type="button" title="Save Changes"
-                                            class="btn btn-primary ml-2 mt-2 mb-2 button_apply_changes"
+                                            class="btn btn-primary ml-2 mt-2 mb-2 button_apply_changes d-none"
                                             id="{{ domain.name }}"
                                             value="{{ domain.serial }}">
                                         <i class="fa-solid fa-save"></i>
@@ -58,7 +63,7 @@
                                     </button>
                                 {% else %}
                                     <button type="button" title="Update from Primary"
-                                            class="btn btn-primary ml-2 mt-2 mb-2 button_update_from_primary"
+                                            class="btn btn-primary ml-2 mt-2 mb-2 button_update_from_primary d-none"
                                             id="{{ domain.name }}">
                                         <i class="fa-solid fa-sync"></i>
                                         &nbsp;Update from Primary
@@ -67,70 +72,48 @@
                             </div>
                         </div>
                         <div class="card-body table-responsive">
-                            <table id="tbl_records" class="table table-bordered table-striped table-hover table-sm">
-                                <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Status</th>
-                                    <th>TTL</th>
-                                    <th>Data</th>
-                                    {% if domain.type != 'Slave' %}
-                                        <th>Comment</th>
-                                        <th>Edit</th>
-                                        <th>Delete</th>
-                                        {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
-                                            <th>Changelog</th>
-                                        {% endif %}
-                                    {% else %}
-                                        <th>Invisible Sorting Column</th>
-                                    {% endif %}
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {% for record in records %}
-                                    <tr class="odd row_record" id="{{ domain.name }}">
-                                        <td>{{ (record.name,domain.name) | display_record_name | pretty_domain_name }}</td>
-                                        <td>{{ record.type }}</td>
-                                        <td>{{ record.status }}</td>
-                                        <td>{{ record.ttl }}</td>
-                                        <td>{{ record.data | pretty_domain_name }}</td>
+                            <div id="table-container" class="d-none">
+                                <table id="tbl_records" class="table table-bordered table-striped table-hover table-sm">
+                                    <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>TTL</th>
+                                        <th>Data</th>
                                         {% if domain.type != 'Slave' %}
-                                            <td>{{ record.comment }}</td>
-                                            <td>
-                                                {% if record.is_allowed_edit() %}
-                                                    <button type="button" class="btn btn-sm btn-warning button_edit">
-                                                        <i class="fa-solid fa-edit"></i>
-                                                    </button>
-                                                {% else %}
-                                                    <button type="button" class="btn btn-sm btn-warning">
-                                                        <i class="fa-solid fa-exclamation-circle"></i>
-                                                    </button>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if record.is_allowed_delete() %}
-                                                    <button type="button" class="btn btn-sm btn-danger button_delete">
-                                                        <i class="fa-solid fa-trash"></i>
-                                                    </button>
-                                                {% endif %}
-                                            </td>
+                                            <th>Comment</th>
+                                            <th>Edit</th>
+                                            <th>Delete</th>
                                             {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
-                                                <td>
-                                                    <button type="button"
-                                                            onclick="show_record_changelog('{{ record.name }}','{{ record.type }}',event)"
-                                                            class="btn btn-primary">
-                                                        <i class="fa-solid fa-history" aria-hidden="true"></i>
-                                                    </button>
-                                                </td>
+                                                <th>Changelog</th>
                                             {% endif %}
+                                        {% else %}
+                                            <th>Invisible Sorting Column</th>
                                         {% endif %}
-                                        <!-- hidden column that we can sort on -->
-                                        <td>1</td>
                                     </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                    {% for record in records %}
+                                        <tr>
+                                            <td>{{ record.name }}</td>
+                                            <td>{{ record.type }}</td>
+                                            <td>{{ record.status }}</td>
+                                            <td>{{ record.ttl }}</td>
+                                            <td>{{ record.data }}</td>
+                                            {% if domain.type != 'Slave' %}
+                                                <td>{{ record.comment }}</td>
+                                                <td>{{ record.is_allowed_edit }}</td>
+                                                <td>{{ record.is_allowed_delete }}</td>
+                                                <td>{{ record.changelog }}</td>
+                                            {% endif %}
+                                            <!-- hidden column that we can sort on -->
+                                            <td>1</td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -154,219 +137,206 @@
 
 {% block extrascripts %}
     <script>
-        // superglobals
-        window.records_allow_edit = {{ editable_records | tojson }};
-        window.ttl_options = {{ ttl_options | tojson }};
-        window.nEditing = null;
-        window.nNew = false;
 
-        // set up user data table
-        $("#tbl_records").DataTable({
-            "paging": true,
-            "lengthChange": true,
-            "searching": true,
-            "ordering": true,
-            "info": true,
-            "autoWidth": false,
-            {% if SETTING.get('default_record_table_size') | string in ['5','15','20'] %}
-                "lengthMenu": [[5, 15, 20, -1],
-                    [5, 15, 20, "All"]],
-            {% else %}
-                "lengthMenu": [[5, 15, 20, {{ SETTING.get('default_record_table_size') }}, -1],
-                    [5, 15, 20, {{ SETTING.get('default_record_table_size') }}, "All"]],
-            {% endif %}
-            "pageLength": {{ SETTING.get('default_record_table_size') }},
-            "language": {
-                "lengthMenu": " _MENU_ records"
-            },
-            "retrieve": true,
-            "columnDefs": [
-                {
-                    type: 'natural',
-                    targets: [0, 4]
-                },
-                {
-                    targets: [0, 1, 2, 3, 4, 5],
-                    render: $.fn.dataTable.render.text()
-                },
-                {
-                    // hidden column so that we can add new records on top
-                    // regardless of whatever sorting is done. See orderFixed
-                    visible: false,
-                    {% if domain.type != 'Slave' %}
-                        {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
-                            targets: [9]
-                        {% else %}
-                            targets: [8]
-                        {% endif %}
-                    {% else %}
-                        targets: [5]
-                    {% endif %}
-                },
-                {
-                    targets: [0],
-                    className: "text-right",
-                    data: {
-                        '_': "0",
-                        'sort': function (row, _type, _set, _meta) {
-                            const data = row[0] || '';
-                            return data.split('.').reverse().join('.');
-                        },
-                    },
+            // handle edit button and record click
+            function bindClickEvents(quick_edit) {
+                var selector = ".button_edit";
+                if (quick_edit) {
+                    selector += ", .row_record";
                 }
-            ],
-            {% if domain.type != 'Slave' %}
-                {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
-                    "orderFixed": [[9, 'asc']]
-                {% else %}
-                    "orderFixed": [[8, 'asc']]
-                {% endif %}
-            {% else %}
-                "orderFixed": [[5, 'asc']]
-            {% endif %}
-        });
+                {% if domain.type != 'Slave' %}
+                    $(document.body).on("click", selector, function (e) {
+                        e.stopPropagation();
+                        if ($(this).is('tr')) {
+                            var nRow = $(this)[0];
+                        } else {
+                            var nRow = $(this).parents('tr')[0];
+                        }
+                        var table = $("#tbl_records").DataTable();
 
+                        if (nEditing == nRow) {
+                            /* click on row already being edited, do nothing */
+                        } else if (nEditing !== null && nEditing != nRow && nNew == false) {
+                            /* Currently editing - but not this row - restore the old before continuing to edit mode */
+                            restoreRow(table, nEditing);
+                            editRow(table, nRow);
+                            nEditing = nRow;
+                        } else if (nNew == true) {
+                            /* adding a new row, delete it and start editing */
+                            table.row(nEditing).remove().draw();
+                            nNew = false;
+                            editRow(table, nRow);
+                            nEditing = nRow;
+                        } else {
+                            /* No edit in progress - let's start one */
+                            editRow(table, nRow);
+                            nEditing = nRow;
+                        }
+                    });
+                {% endif %}
+            }
 
         function show_record_changelog(record_name, record_type, e) {
             e.stopPropagation();
             window.location.href = "/domain/{{domain.name}}/changelog/" + record_name + "./" + record_type;
         }
 
-        // handle changelog button
-        $(document.body).on("click", ".button_changelog", function (e) {
-            e.stopPropagation();
-            window.location.href = "/domain/{{domain.name}}/changelog";
-        });
-
-        // handle delete button
-        $(document.body).on("click", ".button_delete", function (e) {
-            e.stopPropagation();
-            var modal = $("#modal_delete");
-            var table = $("#tbl_records").DataTable();
-            var record = $(this).prop('id');
-            var nRow = $(this).parents('tr')[0];
-            var info = "Are you sure you want to delete " + record + "?";
-            modal.find('.modal-body p').text(info);
-            modal.modal('show');
-
-            $("#button_delete_confirm").unbind().one('click', function (e) {
-                table.row(nRow).remove().draw();
-                modal.modal('hide');
+        // Initialize the DataTable and event handlers
+        function initDataTableAndEventHandlers(records) {
+            // set up user data table
+            $("#tbl_records").DataTable({
+                "retrieve": true,
+                "columnDefs": [
+                    {
+                        type: 'natural',
+                        targets: [0, 4]
+                    },
+                    {
+                        targets: [0, 1, 2, 3, 4, 5],
+                        render: $.fn.dataTable.render.text()
+                    },
+                    {
+                        // hidden column so that we can add new records on top
+                        // regardless of whatever sorting is done. See orderFixed
+                        visible: false,
+                        {% if domain.type != 'Slave' %}
+                            {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
+                                targets: [9]
+                            {% else %}
+                                targets: [8]
+                            {% endif %}
+                        {% else %}
+                            targets: [5]
+                        {% endif %}
+                    },
+                    {
+                        targets: [0],
+                        className: "text-right",
+                        data: {
+                            '_': "0",
+                            'sort': function (row, _type, _set, _meta) {
+                                const data = row[0] || '';
+                                return data.split('.').reverse().join('.');
+                            },
+                        },
+                    }
+                ],
+                {% if domain.type != 'Slave' %}
+                    {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
+                        "orderFixed": [[9, 'asc']]
+                    {% else %}
+                        "orderFixed": [[8, 'asc']]
+                    {% endif %}
+                {% else %}
+                    "orderFixed": [[5, 'asc']]
+                {% endif %}
             });
 
-            $("#button_delete_cancel").unbind().one('click', function (e) {
-                modal.modal('hide');
-            });
-        });
-        // handle edit button and record click
-        {% if domain.type != 'Slave' %}
-            $(document.body).on("click", ".button_edit{% if quick_edit %}, .row_record{% endif %}", function (e) {
+            // handle changelog button
+            $(document.body).on("click", ".button_changelog", function (e) {
                 e.stopPropagation();
-                if ($(this).is('tr')) {
-                    var nRow = $(this)[0];
-                } else {
-                    var nRow = $(this).parents('tr')[0];
-                }
-                var table = $("#tbl_records").DataTable();
+                window.location.href = "/domain/{{domain.name}}/changelog";
+            });
 
-                if (nEditing == nRow) {
-                    /* click on row already being edited, do nothing */
-                } else if (nEditing !== null && nEditing != nRow && nNew == false) {
-                    /* Currently editing - but not this row - restore the old before continuing to edit mode */
-                    restoreRow(table, nEditing);
-                    editRow(table, nRow);
-                    nEditing = nRow;
-                } else if (nNew == true) {
-                    /* adding a new row, delete it and start editing */
-                    table.row(nEditing).remove().draw();
+            // handle delete button
+            $(document.body).on("click", ".button_delete", function (e) {
+                e.stopPropagation();
+                var modal = $("#modal_delete");
+                var table = $("#tbl_records").DataTable();
+                var record = $(this).prop('id');
+                var nRow = $(this).parents('tr')[0];
+                var info = "Are you sure you want to delete " + record + "?";
+                modal.find('.modal-body p').text(info);
+                modal.modal('show');
+
+                $("#button_delete_confirm").unbind().one('click', function (e) {
+                    table.row(nRow).remove().draw();
+                    modal.modal('hide');
+                });
+
+                $("#button_delete_cancel").unbind().one('click', function (e) {
+                    modal.modal('hide');
+                });
+            });
+
+            // handle apply changes button
+            $(document.body).on("click", ".button_apply_changes", function () {
+                if (nNew || nEditing) {
+                    showErrorModal("Previous record not saved. Please save it before applying the changes.");
+                    return;
+                }
+
+                var modal = $("#modal_apply_changes");
+                var table = $("#tbl_records").DataTable();
+                var domain = $(this).prop('id');
+                var serial = $(".button_apply_changes").val();
+                var info = "Are you sure you want to apply your changes?";
+                modal.find('.modal-body p').text(info);
+
+                // following unbind("click") is to avoid multiple times execution
+                modal.find('#button_apply_confirm').unbind("click").click(function () {
+                    var data = {'serial': serial, 'record': getTableData(table), '_csrf_token': '{{ csrf_token() }}'};
+                    applyRecordChanges(data, domain);
+                    modal.modal('hide');
+                })
+                modal.modal('show');
+
+            });
+
+            // handle add record button
+            $(document.body).on("click", ".button_add_record", function (e) {
+                if (nNew || nEditing) {
+                    showErrorModal("Previous record not saved. Please save it before adding more record.");
+                    return;
+                }
+                // clear search first
+                $("#tbl_records").DataTable().search('').columns().search('').draw();
+
+                // add new row
+                var default_type = records_allow_edit[0]
+                {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
+                    var nRow = jQuery('#tbl_records').dataTable().fnAddData(['', default_type, 'Active', window.ttl_options[0][0], '', '', '', '', '', '0']);
+                {% else %}
+                    var nRow = jQuery('#tbl_records').dataTable().fnAddData(['', default_type, 'Active', window.ttl_options[0][0], '', '', '', '', '0']);
+                {% endif %}
+                editRow($("#tbl_records").DataTable(), nRow);
+                document.getElementById("edit-row-focus").focus();
+                nEditing = nRow;
+                nNew = true;
+            });
+
+            //handle cancel button
+            $(document.body).on("click", ".button_cancel", function (e) {
+                e.stopPropagation();
+                var oTable = $("#tbl_records").DataTable();
+                if (nNew) {
+                    oTable.row(nEditing).remove().draw();
+                    nEditing = null;
                     nNew = false;
-                    editRow(table, nRow);
-                    nEditing = nRow;
                 } else {
-                    /* No edit in progress - let's start one */
-                    editRow(table, nRow);
-                    nEditing = nRow;
+                    restoreRow(oTable, nEditing);
+                    nEditing = null;
                 }
             });
-        {% endif %}
 
-        // handle apply changes button
-        $(document.body).on("click", ".button_apply_changes", function () {
-            if (nNew || nEditing) {
-                showErrorModal("Previous record not saved. Please save it before applying the changes.");
-                return;
-            }
-
-            var modal = $("#modal_apply_changes");
-            var table = $("#tbl_records").DataTable();
-            var domain = $(this).prop('id');
-            var serial = $(".button_apply_changes").val();
-            var info = "Are you sure you want to apply your changes?";
-            modal.find('.modal-body p').text(info);
-
-            // following unbind("click") is to avoid multiple times execution
-            modal.find('#button_apply_confirm').unbind("click").click(function () {
-                var data = {'serial': serial, 'record': getTableData(table), '_csrf_token': '{{ csrf_token() }}'};
-                applyRecordChanges(data, domain);
-                modal.modal('hide');
-            })
-            modal.modal('show');
-
-        });
-
-        // handle add record button
-        $(document.body).on("click", ".button_add_record", function (e) {
-            if (nNew || nEditing) {
-                showErrorModal("Previous record not saved. Please save it before adding more record.");
-                return;
-            }
-            // clear search first
-            $("#tbl_records").DataTable().search('').columns().search('').draw();
-
-            // add new row
-            var default_type = records_allow_edit[0]
-            {% if current_user.role.name in ['Administrator', 'Operator'] or allow_user_view_history %}
-                var nRow = jQuery('#tbl_records').dataTable().fnAddData(['', default_type, 'Active', window.ttl_options[0][0], '', '', '', '', '', '0']);
-            {% else %}
-                var nRow = jQuery('#tbl_records').dataTable().fnAddData(['', default_type, 'Active', window.ttl_options[0][0], '', '', '', '', '0']);
-            {% endif %}
-            editRow($("#tbl_records").DataTable(), nRow);
-            document.getElementById("edit-row-focus").focus();
-            nEditing = nRow;
-            nNew = true;
-        });
-
-        //handle cancel button
-        $(document.body).on("click", ".button_cancel", function (e) {
-            e.stopPropagation();
-            var oTable = $("#tbl_records").DataTable();
-            if (nNew) {
-                oTable.row(nEditing).remove().draw();
+            //handle save button
+            $(document.body).on("click", ".button_save", function (e) {
+                e.stopPropagation();
+                var table = $("#tbl_records").DataTable();
+                saveRow(table, nEditing);
                 nEditing = null;
                 nNew = false;
-            } else {
-                restoreRow(oTable, nEditing);
-                nEditing = null;
-            }
-        });
+            });
 
-        //handle save button
-        $(document.body).on("click", ".button_save", function (e) {
-            e.stopPropagation();
-            var table = $("#tbl_records").DataTable();
-            saveRow(table, nEditing);
-            nEditing = null;
-            nNew = false;
-        });
-
-        //handle update_from_primary button
-        $(document.body).on("click", ".button_update_from_primary", function (e) {
-            var domain = $(this).prop('id');
-            applyChanges({
-                'domain': domain,
-                '_csrf_token': '{{ csrf_token() }}'
-            }, $SCRIPT_ROOT + '/domain/' + domain + '/update', true);
-        });
+            //handle update_from_primary button
+            $(document.body).on("click", ".button_update_from_primary", function (e) {
+                var domain = $(this).prop('id');
+                applyChanges({
+                    'domain': domain,
+                    '_csrf_token': '{{ csrf_token() }}'
+                }, $SCRIPT_ROOT + '/domain/' + domain + '/update', true);
+            });
+        }
 
         {% if SETTING.get('record_helper') %}
             //handle wacky record types
@@ -597,9 +567,99 @@
             });
         {% endif %}
 
-        window.onload = function () {
-            document.getElementById("loading-spinner").style.display = "none";
-        }
+
+        $(document).ready(function() {
+    // Show the loading spinner
+    $("#loading").removeClass("d-none");
+
+  // Construct the endpoint URL based on the domain name
+  var recordsEndpointUrl = window.location.pathname + "/records";
+  var optionsEndpointUrl = window.location.pathname + "/options";
+
+  var recordsRequest = $.ajax({
+    url: recordsEndpointUrl,
+    type: "GET",
+    dataType: "json",
+  });
+
+  var optionsRequest = $.ajax({
+    url: optionsEndpointUrl,
+    type: "GET",
+    dataType: "json",
+  });
+
+  // Wait for both AJAX requests to complete
+  $.when(recordsRequest, optionsRequest).done(function(recordsResponse, optionsResponse) {
+
+    // Process options response
+    var defaultRecordTableSize = optionsResponse[0].default_record_table_size;
+    window.quick_edit = optionsResponse[0].quick_edit;
+    window.records_allow_edit = optionsResponse[0].editable_records;
+    window.ttl_options = optionsResponse[0].ttl_options;
+    window.nEditing = null;
+    window.nNew = false;
+    
+    // Convert JSON data to the original array format
+    var convertedData = recordsResponse[0].records.map(function(record) {
+        return [
+            record.name,
+            record.type,
+            record.status,
+            record.ttl,
+            record.data,
+            record.comment,
+            record.is_allowed_edit ? '<button type="button" class="btn btn-sm btn-warning button_edit"><i class="fa-solid fa-edit"></i></button>' : '<button type="button" class="btn btn-sm btn-warning"><i class="fa-solid fa-exclamation-circle"></i></button>',
+            record.is_allowed_delete ? '<button type="button" class="btn btn-sm btn-danger button_delete"><i class="fa-solid fa-trash"></i></button>' : '<button type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-exclamation-circle"></i></button>',
+            record.changelog ? '<button type="button" onclick="show_record_changelog(\'' + record.name + '\',\'' + record.type + '\',event)" class="btn btn-primary"><i class="fa-solid fa-history" aria-hidden="true"></i></button>' : '<button type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-exclamation-circle"></i></button>'
+        ];
+    });
+    
+    // Process records response
+    var lengthMenuOptions = [5, 15, 20, -1];
+    if (!lengthMenuOptions.includes(defaultRecordTableSize)) {
+        lengthMenuOptions.push(defaultRecordTableSize);
+        lengthMenuOptions.sort(function(a, b){return a-b});
+    }
+    var lengthMenu = [lengthMenuOptions, lengthMenuOptions.map(String).map(function (item) {
+        return item === '-1' ? 'All' : item;
+    })];
+    var table = $("#tbl_records").DataTable({
+        "paging": true,
+        "lengthChange": true,
+        "searching": true,
+        "ordering": true,
+        "info": true,
+        "autoWidth": false,
+        "lengthMenu": lengthMenu,
+        "pageLength": defaultRecordTableSize,
+        "language": {
+            "lengthMenu": " _MENU_ records"
+        },
+    });
+    table.clear().rows.add(convertedData).draw();
+
+    // Add the class and id to each row
+    $("#tbl_records tbody tr").each(function() {
+        $(this).addClass('row_record');
+        $(this).attr('id', '{{ domain.name }}');
+    });
+
+    // Show buttons and table
+    $("#loading").addClass("d-none");
+    $(".button_zone_settings").removeClass("d-none");
+    $(".button_changelog").removeClass("d-none");
+    $(".button_add_record").removeClass("d-none");
+    $(".button_apply_changes").removeClass("d-none");
+    $(".button_update_from_primary").removeClass("d-none");
+    $("#table-container").removeClass("d-none");
+    
+    // Initialize the DataTable and event handlers
+    initDataTableAndEventHandlers(recordsResponse[0].records);
+    bindClickEvents(window.quick_edit);
+  });
+});
+
+
 
     </script>
 {% endblock %}

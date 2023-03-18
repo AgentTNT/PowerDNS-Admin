@@ -4,6 +4,7 @@ import datetime
 import traceback
 import dns.name
 import dns.reversename
+from collections import namedtuple
 from distutils.version import StrictVersion
 from flask import Blueprint, render_template, make_response, url_for, current_app, request, redirect, abort, jsonify, g, session
 from flask_login import login_required, current_user, login_manager
@@ -61,6 +62,45 @@ def domain(domain_name):
     if not domain:
         abort(404)
 
+    return render_template('domain.html', domain=domain, current_user=current_user)
+
+@domain_bp.route('/<path:domain_name>/options', methods=['GET'])
+@login_required
+@can_access_domain
+def domain_options(domain_name):
+    domain = Domain.query.filter(Domain.name == domain_name).first()
+    if not domain:
+        abort(404)
+
+    if not re.search(r'ip6\.arpa|in-addr\.arpa$', domain_name):
+        editable_records = Setting().get_forward_records_allow_to_edit()
+    else:
+        editable_records = Setting().get_reverse_records_allow_to_edit()
+
+    ttl_options = Setting().get_ttl_options()
+
+    quick_edit = Setting().get('record_quick_edit')
+
+    allow_user_view_history = Setting().get('allow_user_view_history')
+
+    default_record_table_size = Setting().get('default_record_table_size')
+
+    return jsonify(editable_records=editable_records,
+        ttl_options=ttl_options,
+        quick_edit=quick_edit,
+        allow_user_view_history=allow_user_view_history,
+        default_record_table_size=default_record_table_size)
+
+
+@domain_bp.route('/<path:domain_name>/records', methods=['GET'])
+@login_required
+@can_access_domain
+def domain_records(domain_name):
+    # Validate the domain existing in the local DB
+    domain = Domain.query.filter(Domain.name == domain_name).first()
+    if not domain:
+        abort(404)
+
     # Query domain's rrsets from PowerDNS API
     rrsets = Record().get_rrsets(domain.name)
     current_app.logger.debug("Fetched rrsets: \n{}".format(pretty_json(rrsets)))
@@ -69,15 +109,14 @@ def domain(domain_name):
     if not rrsets and domain.type != 'Slave':
         abort(500)
 
-    quick_edit = Setting().get('record_quick_edit')
     records_allow_to_edit = Setting().get_records_allow_to_edit()
     forward_records_allow_to_edit = Setting(
     ).get_forward_records_allow_to_edit()
     reverse_records_allow_to_edit = Setting(
     ).get_reverse_records_allow_to_edit()
-    ttl_options = Setting().get_ttl_options()
     records = []
-
+    # Define RecordEntry as a namedtuple
+    RecordEntry = namedtuple("RecordEntry", ["name", "type", "status", "ttl", "data", "comment", "is_allowed_edit", "is_allowed_delete"])
     # Render the "records" to display in HTML datatable
     #
     # BUG: If we have multiple records with the same name
@@ -92,13 +131,13 @@ def domain(domain_name):
         pretty_v6 = Setting().get('pretty_ipv6_ptr')
         for r in rrsets:
             if r['type'] in records_allow_to_edit:
-                r_name = r['name'].rstrip('.')
+                r_name = '@' if r['name'].rstrip('.') == domain_name else r['name'].rstrip('.').replace('.' + domain_name, '')
 
                 # If it is reverse zone and pretty_ipv6_ptr setting
                 # is enabled, we reformat the name for ipv6 records.
                 if pretty_v6 and r['type'] == 'PTR' and 'ip6.arpa' in r_name and '*' not in r_name:
                     r_name = dns.reversename.to_address(
-                        dns.name.from_text(r_name))
+                    dns.name.from_text(r_name))
 
                 # Create the list of records in format that
                 # PDA jinja2 template can understand.
@@ -115,27 +154,28 @@ def domain(domain_name):
                         ttl=r['ttl'],
                         data=record['content'],
                         comment=c,
-                        is_allowed_edit=True)
+                        is_allowed_edit=True,
+                        is_allowed_delete=True if r['type'] != 'SOA' else False)
                     index += 1
                     records.append(record_entry)
     else:
         # Unsupported version
         abort(500)
 
-    if not re.search(r'ip6\.arpa|in-addr\.arpa$', domain_name):
-        editable_records = forward_records_allow_to_edit
-    else:
-        editable_records = reverse_records_allow_to_edit
+    def serialize_record_entry(record_entry):
+        return {
+            "name": record_entry.name,
+            "type": record_entry.type,
+            "status": record_entry.status,
+            "ttl": record_entry.ttl,
+            "data": record_entry.data,
+            "comment": record_entry.comment,
+            "is_allowed_edit": record_entry.is_allowed_edit,
+            "is_allowed_delete": record_entry.is_allowed_delete,
+            "changelog": True
+        }
 
-    return render_template('domain.html',
-                           domain=domain,
-                           records=records,
-                           editable_records=editable_records,
-                           quick_edit=quick_edit,
-                           ttl_options=ttl_options,
-                           current_user=current_user,
-                           allow_user_view_history=Setting().get('allow_user_view_history'))
-
+    return jsonify(records=[serialize_record_entry(record) for record in records])
 
 @domain_bp.route('/remove', methods=['GET', 'POST'])
 @login_required

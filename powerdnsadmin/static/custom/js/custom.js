@@ -63,9 +63,11 @@ function getTableData(table) {
         record["record_name"] = r[0].trim();
         record["record_type"] = r[1].trim();
         record["record_status"] = r[2].trim();
-        record["record_ttl"] = r[3].trim();
+        record["record_ttl"] = r[3];
         record["record_data"] = convertHTMLEntityToText(r[4].trim());
         record["record_comment"] = convertHTMLEntityToText(r[5].trim());
+        record["is_allowed_edit"] = r[6] !== '';
+        record["is_allowed_delete"] = r[7] !== '';
         records.push(record);
     });
     return records

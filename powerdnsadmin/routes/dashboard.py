@@ -90,7 +90,7 @@ def domains_custom(tab_id):
 
     template = current_app.jinja_env.get_template("dashboard_domain.html")
     render = template.make_module(
-        vars={"current_user": current_user, "allow_user_view_history": Setting().get('allow_user_view_history')})
+        vars={"current_user": current_user, "allow_user_view_history": Setting().get('allow_user_view_history'), "allow_user_remove_domain": Setting().get('allow_user_remove_domain')})
 
     columns = [
         Domain.name, Domain.dnssec, Domain.type, Domain.serial, Domain.master,
